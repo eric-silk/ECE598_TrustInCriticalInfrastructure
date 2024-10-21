@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "water-tank"
+version = "0.1.0"
+description = "An example water tank problem for ECE498/598: Trust in Critical Infrastructure, Fall '24 @ UIUC"
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.10.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

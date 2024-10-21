@@ -1,6 +1,7 @@
 ## Our custom stuff
 **/build
 *.pdf
+**_env
 
 ## Core latex/pdflatex auxiliary files:
 *.aux
