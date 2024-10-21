@@ -125,6 +125,19 @@ async def run_async_client(client, modbus_calls=None):
 async def run_a_few_calls(client):
     """Test connection works."""
     try:
+        print("Reading output coil bits")
+        rr = await client.read_coils(0, 2, slave=1)
+        print(rr.bits)
+
+        print("Reading direct input flags")
+        rr = await client.read_discrete_inputs(3, 4, slave=1)
+        print(rr.bits)
+
+        print("Reading holding registers to get level")
+        rr = await client.read_holding_registers(8, 1, slave=1)
+        print(rr.registers)
+
+        return
         #rr = await client.read_discrete_inputs(0, 8, slave=1)
         print("Attempting direct input address read...")
         rr = await client.read_discrete_inputs(ai.rd_direct_input_address, count=ai.rd_direct_input_cnt, slave=1)
