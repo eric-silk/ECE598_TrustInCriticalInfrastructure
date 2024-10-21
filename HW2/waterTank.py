@@ -42,10 +42,9 @@ import pymodbus
 
 try:
     import server_async
-except ImportError:
-    print("*** ERROR --> THIS EXAMPLE needs the example directory, please see \n\
-          https://pymodbus.readthedocs.io/en/latest/source/examples.html\n\
-          for more information.")
+    from addressing_info import *
+except ImportError as e:
+    print(e)
     sys.exit(-1)
 
 from pymodbus.datastore import (
@@ -58,16 +57,6 @@ _logger = logging.getLogger(__name__)
 
 dtDict = {}
 argFile = ""
-slave_id = 0x00
-
-# global for access by both setup and update
-rd_reg_cnt = 1              # number of input registers used
-rd_output_coil_cnt = 2      # number of output coils used
-rd_direct_input_cnt = 4       # number of direct inputs
-
-rd_output_coil_address = 0
-rd_direct_input_address = rd_output_coil_address+rd_output_coil_cnt + 1
-rd_reg_address = rd_direct_input_address+rd_direct_input_cnt+1
 
 # 'input' parameters
 brb = 0                 # initial state of the Big Red Button 
@@ -235,12 +224,6 @@ async def updating_task(context):
     It should be noted that getValues and setValues are not safe
     against concurrent use.
     """
-    rd_reg_as_hex = 0x03 
-    rd_output_coil_as_hex = 0x01
-    rd_direct_input_as_hex = 0x02
-
-    slave_id = 0x00
-
     # set values to initial values. not sure why initial getValues is needed, but server_updating.py has it
     context[slave_id].getValues(rd_reg_as_hex, rd_reg_address, count=len(tankState['registers']))
     context[slave_id].setValues(rd_reg_as_hex, rd_reg_address, tankState['registers'])

@@ -10,9 +10,7 @@ import os
 
 from pymodbus import pymodbus_apply_logging_config
 
-
 _logger = logging.getLogger(__file__)
-
 
 def get_commandline(server=False, description=None, extras=None, cmdline=None):
     """Read and validate command line arguments."""
