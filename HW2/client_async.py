@@ -43,8 +43,13 @@ from pymodbus import ModbusException
 
 
 _logger = logging.getLogger(__file__)
-logging.basicConfig(filename='async_client.log', level=logging.DEBUG)
+logging.basicConfig(filename="async_client.log", level=logging.DEBUG)
 _logger.setLevel("DEBUG")
+
+
+class WaterTankController:
+    def enable_drain(self):
+        pass
 
 
 def setup_async_client(description=None, cmdline=None):
@@ -103,7 +108,7 @@ def setup_async_client(description=None, cmdline=None):
             sslctx=modbusClient.AsyncModbusTlsClient.generate_ssl(
                 certfile=helper.get_certificate("crt"),
                 keyfile=helper.get_certificate("key"),
-            #    password="none",
+                #    password="none",
             ),
         )
     else:
@@ -138,16 +143,22 @@ async def run_a_few_calls(client):
         print(rr.registers)
 
         return
-        #rr = await client.read_discrete_inputs(0, 8, slave=1)
+        # rr = await client.read_discrete_inputs(0, 8, slave=1)
         print("Attempting direct input address read...")
-        rr = await client.read_discrete_inputs(ai.rd_direct_input_address, count=ai.rd_direct_input_cnt, slave=1)
+        rr = await client.read_discrete_inputs(
+            ai.rd_direct_input_address, count=ai.rd_direct_input_cnt, slave=1
+        )
         print(rr)
         print(vars(rr))
         print("Attempting holding registers address read...")
-        rr = await client.read_holding_registers(ai.rd_reg_address, count=ai.rd_reg_cnt, slave=1)
+        rr = await client.read_holding_registers(
+            ai.rd_reg_address, count=ai.rd_reg_cnt, slave=1
+        )
         print(rr)
         print("Attempting output coil address read...")
-        rr = await client.read_coils(ai.rd_output_coil_address, count=ai.rd_output_coil_cnt, slave=1)
+        rr = await client.read_coils(
+            ai.rd_output_coil_address, count=ai.rd_output_coil_cnt, slave=1
+        )
         print(rr)
         print(vars(rr))
 
