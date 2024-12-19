@@ -194,5 +194,92 @@ a prototype algorithm in Python.
 
 
 \section{Attacking the Invariant Method}
+So now we have a method for detecting a certain class of errors/attacks,
+enabling perfect operation of our code-base, serious profits to be had from
+selling this wonderous tech, our favorite sports team winning, and peace in the
+Middle East. Right?
+
+\subsection{Shadow Banned but Still There}
+A key feature adverstised in this algorithm is that the offending agent(s) are
+removed without their knowledge. The perceived benefit is that, if the node is
+malicious, it would then be unable to take remedial action in an attempt to
+continue to wreak havoc.
+
+However, if the error introduced is \textit{not} an attack, the agent will
+continue to operate in ignorance and potentially converge to an incorrect value
+-- \textbf{which it may then still act upon}. As mentioned previously, a
+non-malicious misoperation is still a misoperation, which potentially
+catastrophic results. Indeed, this could itself become an attack. Who cares
+if it's relatively overt? It's still more subtle than a kinetic option.
+
+\subsection{Constraints on Topology}
+Suppose there is one or more nodes in a graph such that their removal
+would violate the assumption that $\mathcal{G}$ is strongly connected.
+We can call these ``keystone'' nodes. The use of this method would then
+create a vulnerability in which an attacker intentionally introduces
+error on such a node to cause it to be declared untrustworthy and removed.
+
+I can imagine two possiblities. In one, the graph stays connected via the
+two-hop edges, allowing the asymptotic convergence property to be preserved but
+slowing the rate of convergence to such a degree that it prevents finite-time
+convergence within an allowable window. In the other (and I would need to spend
+some time to determine if this is actually possible...), the two-hop connections
+are still insufficient to have a strongly connected graph, preventing
+even asymptotic convergence.
+
+
+\subsection{A friend of a friend}
+Although addressed in the paper, the fact  that the use of two-hop neighbors
+only insulates you from non-adjacent faulty agents is somewhat understated. As
+soon as two are adjacent, this falls apart. It is mentioned that this can be
+corrected by increasing the broadcast to include \textit{three-hop} neighbors,
+and so on.
+
+Unfortunately, in small graphs, this quickly exhausts the pool of available agents.
+One possible conclusion is that, for this method, larger systems become more secure.
+It would be interesting to explore the tradeoffs in attack surface, convergence time, etc.
+vs. the improved probabilty of detecting n-hop errors.
+
+Of course, this will do nothing to help systems that are intentionally small, such as microgrids.
+
+\subsection{Playing the Lottery}
+A key weakness of this method is that it is intentionally stochastic. The
+theoretic guarantees about convergence and detection are predicated on the
+characteristic of \textit{asymptotic convergence}; that is, no finite time
+stopping. Yes, if you have a non-zero probabilty of something happening, and
+allow a system infinite time, it will eventually happen.
+
+This goes away as soon as we introduce a finite-time stopping condition.
+The probabilty of a detection occuring then becomes a function of the
+two-hop transmission probabilty \textit{and} the time between an error/attack
+and convergence. In practice, on small graphs (such as what might be found in a
+microgrid), we see convergence occurring in relatively few iterations.
+
+This quickly shifts the discussion from the cozy world of theoretic guarantees
+and ``almost surely'' into a discussion of likelihoods, cost vs. benefits, etc.
+This isn't inherently a problem -- indeed, it could be argued that nearly all of
+security boils down to this exact dilemma. However, industrial and government
+practice often tends either towards hamstringing via risk aversion or
+decapitation from risk tolerance.
+
+Analysis, either analytically or empircally, of a system in question quickly
+becomes a must to inform architects of desirable topologies and n-hop
+probabilties, increasing the complexity and possibly stifling adoption.
+
+\subsection{Corruption of other values}
+What happens if one of the historical values is corrupted after
+recption/storage? Is that identical to a lagged detection..?
+
+
+\subsection{An epsilon problem}
+Finally (I think...), the analytic guarantees of the algorithm exist within the
+realm of infinite precision. Computer systems have no such luxury, introducing a
+need for tolerances when assessing the invariant.  This, in turn, introduces a
+receiver operating characteristic (ROC) for detecting malicious agents, a need to
+set an acceptable false positive/false negative rate, and so on.
+
+The complexity of that aside, it would also enable degradation of the algorithm
+by ``flying under the radar'' and introducing errors small enough to escape
+detection, while still producing subtly incorrect results.
 
 \end{document}
