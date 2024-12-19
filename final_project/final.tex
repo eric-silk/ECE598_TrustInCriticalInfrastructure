@@ -1,0 +1,198 @@
+% This came from my ECE528 repo, check there if you need to add something
+\documentclass[11pt]{article}
+
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{mathtools}
+\usepackage{sectsty}
+\usepackage{graphicx}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[]{amsmath}
+
+% Margins
+\topmargin=-0.45in
+\evensidemargin=0in
+\oddsidemargin=0in
+\textwidth=6.5in
+\textheight=9.0in
+\headsep=0.25in
+
+\title{ECE 598: Trust in Critical Infrastructure Final Project}
+\author{Eric Silk}
+\date{\today}
+
+
+\begin{document}
+\maketitle
+\pagebreak
+
+%--Paper--
+\section{Introduction}
+Renewable energy resources have, in recent years, grown significantly in
+popularity. Many are physically distributed as a consequence of their method of
+generation. For instance, solar panels are capable of generating power as a
+function of their unit area, all else being equal.  Thus, to increase the amount
+of power being generated, one must increase the total area of the panel -- or,
+more typically, the number of panels.
+
+For this reason, distributed energy resources (or DER's) become less amenable to
+conventional centralized control algorithms. This has led to research in
+distributed control algorithms. This paper explores:
+\begin{itemize}
+    \item An algorithmic primitive known as \textit{robust ratio consensus} used
+          in some of these control algorithms
+    \item A key security/robusntess flaw in this algorithm
+    \item A method that has been developed to ameliorate this flaw
+    \item Details of the implementaiton of this fix
+    \item Potential flaws with this fix for further research
+\end{itemize}
+\section{(Robust) Ratio Consensus}
+We begin by formulating the regime under which these algorithms operate. We
+assume DER's are separated in some fashion -- whether logically, physically, or
+otherwise -- and are controlled by a governing agent.  These agents are capable
+of communicating via some abstract channel that may be directed and lossy (e.g.
+TCP/IP, radio, carrier pigeon); the combination of these agents and the
+communication channels forms a graph $\mathcal{G} = \{\mathcal{V},
+    \mathcal{E}\}$.  So long as this graph is \textit{strongly connected}, we can
+proceed with the following algorithm.
+
+Suppose there is some global quantity of interest to be calculated, the equation
+for which is:
+\begin{equation}
+    r^*
+    \coloneqq \frac{y_1 + y_2 +\ldots + y_n}{z_1 + z_2 + \ldots + z_n}
+    = \frac{\sum_{i\in\mathcal{V}}y_i}{\sum_{i\in\mathcal{V}}z_i}
+\end{equation}
+where each $y_i$ and $z_i$ is agent $i$'s local quantity.
+This is a \textit{ration of sums}, and arises naturally in many engineering
+problems (or, perhaps less naturally, the problem can be reformulated to use
+this equation). For instance, an unweighted average can be found by setting
+$y_i$ to the local quantity and $z_i$ to 1.
+
+While we could use a message-passing protocol to do a sort of state replication
+across all agents, this can become unwieldy in large graphs and graphs with a
+large diameter. Furthermore, it may be desirable to retain some notion of
+privacy and not have your local quantity known. To solve this, we will use the
+so-called \textit{ratio consensus} (RC) algorithm which, as its name suggest, allows
+disparate agents to come to a consensus about the global ratio $r^*$. In
+particular, we will use a variant that is robust to packet drops (recall the
+channels may be lossy!) known as the \textit{running sum ratio consensus} (RSRC).
+
+The algorithm, conducted from the perspective of agent $j$:
+%TODO
+\begin{algorithm}
+    \caption{Robust Ratio Consensus}
+    \begin{algorithmic}
+        \State $y[0] = y0, z[0] = z0$
+    \end{algorithmic}
+\end{algorithm}
+
+The algorithm will converge \textit{asymptotically} to the true global value
+$r^*$ as $t\rightarrow\infty$\footnote{We neglect stopping conditions, but in
+    short: another algorithm called Max-Min (or Min-Max) Consensus is used to
+    determine the maximum and minimum ratio estimate in the graph. If the difference
+    between the two falls below some tolerance, we say it's ``good enough'' and move
+    on to more interesting things.}.
+The robustness to dropped packets comes from the use of the differencing operations. Dropped packets
+merely delay convergence somewhat.
+
+There are some additional practical considerations for this algorithm. First, of
+course, any consensus algorithm is beset by the spectre  of Byzantine failures.
+We posit that, while a theoretical problem for convergence, most modern
+communication methods are reliable enough to not be of practical concern (woe to
+those who selected carrier pigeons from the suggested communcation channels!).
+Second, while this algorithm is distributed and thus almost assuredly
+asynchronous, we do need a way of synchronizing. Otherwise, different hardware,
+different implementations, or different paths in the program may cause one agent
+to complete an iteration and move on well before the others. To resolve this, we
+assume each device is capable of knowing the current time to a reasonable degree
+of accuracy and precision within a common epoch. This can be managed through
+protocols such as NTP or PTP, the use of a GNSS receiver, etc. Then, each round
+of the algorithm is bounded via temporal barriers. Any traffic from other agents
+from iteration $k-1$ or $k+1$ reaching the local agent during iteration $k$ is
+logged and discarded. Finally, there is a maximum number of rounds (or
+equivalently overall time) within which the algorithm must converge to prevent a
+failure to act in a timely fashion, as well as an alternative action that can be
+taken in the event of a failure to converge.
+
+\section{Trust Issues}
+While this algorithm seems fairly robust, it is entirely trusting of its
+in-neighbors.  Should another agent introduce some error, either due to a benign
+bit flip or a malicious manipulation, it will then advertise an incorrect value
+to it's out-neighbors. They will, in turn, ingest this erroneous value,
+calculate a new (erroneous) local value, and so on.  While it would be bad
+enough if the algorithm then failed to converge, a more sinister result occurs:
+it converges, but to an incorrect value. I expect i needn't inform the reader of
+the dangers of misoperation in critical operations, but one can imagine the
+catastrophic effects of a generator exceeding its rated RPM.
+
+How, then, to assess the credibility of those feeding us information? In
+personnel security, such as when performing a background investigation, it's
+common to require personal or professional references. While it may be possible
+for a bad actor to lie about their background, intentions, etc., it is harder to
+collude with one or more third parties to sell the decption. We can adopt this
+notion to extend the trusting RSRC algorithm into one that adheres to the
+Russian proverb: ``Trust, but verify.''
+
+\section{Invariants: Trust...but verify}
+To understand the attack model we are interested in, some cases we do not consider include:
+\begin{itemize}
+    \item The algorithm begins with error; i.e. we do not consider the case
+          where an agent's initial values are incorrect, only that during operation
+          some error is introduced
+    \item The communcation channels themselves are untrustworthy; i.e. we do not
+          consider man-in-the-middle (MITM) attacks
+    \item The error is introduced after convergence; i.e., the algorithm
+          converges but the local value $r_i$ is corrupted later
+\end{itemize}
+We are solely interested in the case where an error is introduced in some iteration $0<k<k_{final}$.
+
+The communications graph must be extended to allow for a node to hear from it's
+in-neighbors' in-neighbors, or it's \textit{two-hop} in-neighbors. Concretely,
+this could be achived by a high-power radio broadcast, a separate ``topic'' in a
+Pub/Sub scheme, etc.
+
+Then, this ability must be exercised \textit{stochastically}. If it occurred at
+every transmission, it would be conceptually identical to these two-hop
+neighbors being regular neighbors. If it occurred \textit{periodically}, malicious
+actors could inject errors that could ten be undone just before this period expires,
+slowing or possibly preventing convergence within a desired time limit. Similarly, they may
+be able to take advantage of timing wherein they inject an error in such a way as to
+cause convergence to an incorrect value before another check occurs.
+
+Now, both of these attacks are still possible in practice, but remove assurances
+that they won't be detected. Instead, an attacker must weigh the risk/cost of
+detection vs. the value of a succesful attack.
+
+
+
+\section{Implementing the Invariant Method}
+\subsection*{Prior Work}
+The aforementioned RSRC algorithm has been implemented in a C++ library along with all the necesscary
+infrastructure to enable demonstrations -- basic task scheduling and management,
+communications, packet routing, etc.
+
+\medskip
+\noindent
+But...
+
+\medskip
+\noindent
+\noindent
+Development in this environment is...slow. While the RSRC task was written to be flexible enough to
+build upon (use unique per-task packets, set the quantity and type of num/den
+values, etc.), the algorithm described above was different enough to warrant a
+rewrite. At least, until I could wrap my head around it conceptually.
+Unfortunatley, C++ is a harsh mistress\footnote{I'm also an extremely mediocre
+    C++ programmer. I miss having senior software engineers I could ask dumb
+    questions...}. After several days of weird CMake complaints, obnoxious
+compilation errors, and slow build times I decided to cast it aside and rebuild
+a prototype algorithm in Python.
+
+\subsection*{Python Implementation}
+
+
+\section{Attacking the Invariant Method}
+
+\end{document}
