@@ -184,12 +184,10 @@ TANK_STATE = {"coils": initCoils, "inputs": initInputs, "registers": initRegs}
 
 
 def update_inputs(context):
-    print("entered update_inputs()")
     global TANK_INPUT_RATE, TANK_OUTPUT_RATE
     with open(ARG_FILE, "r") as rf:
         dtDict = json.load(rf)
 
-    print("read json file")
     if "inputRate" in dtDict:
         TANK_INPUT_RATE = dtDict["inputRate"]
 
@@ -202,6 +200,7 @@ def update_inputs(context):
 
     if "brb" in dtDict:
         brb = dtDict["brb"]
+        print(f"BRB status from 'update_inputs()': {brb}")
 
     assert brb == 0 or brb == 1, "BRB value should be 0 or 1"
 
@@ -215,7 +214,6 @@ def update_inputs(context):
 
 
 def update_tank_state(context):
-    print("entered update tank state")
     global TANK_LEVEL
 
     update_inputs(context)
@@ -295,12 +293,11 @@ async def updating_task(context):
 
     # incrementing loop
     while True:
-        print(f"Level: {TANK_LEVEL}, waiting...")
+        print(TANK_STATE)
+        print(INPUT_MAP)
         await asyncio.sleep(UPDATE_RATE)
-        print(f"Done sleeping")
 
         update_tank_state(context)
-        print("Updated tank state")
 
         # fetch the coil and direct inputs from the data store
         coil_values = context[SLAVE_ID].getValues(
@@ -321,11 +318,19 @@ async def updating_task(context):
         input_values[INPUT_MAP["DRAIN"]] = TANK_STATE["inputs"][INPUT_MAP["DRAIN"]]
 
         # set INPUT coil to OFF if level is at max or if BRB is not on
+        overfull = MAX_TANK_LEVEL <= TANK_LEVEL
+        big_red_button_off = input_values[INPUT_MAP["BRB"]] == 0
+        input_coil_off = coil_values[COIL_MAP["INPUT"]] == 0
+
         if (
             (MAX_TANK_LEVEL <= TANK_LEVEL)
             or input_values[INPUT_MAP["BRB"]] == 0
             or coil_values[COIL_MAP["INPUT"]] == 0
         ):
+            print("Setting INPUT coil to off, because one of the following is true:")
+            print(f"Tank overfull: {overfull}")
+            print(f"BRB off: {big_red_button_off}")
+            print(f"Input Coil off: {input_coil_off}")
             coil_values[COIL_MAP["INPUT"]] = 0
 
         # set OUTPUT coil to OFF if level is at 0 or if DRAIN is not on
@@ -334,10 +339,13 @@ async def updating_task(context):
             or input_values[INPUT_MAP["DRAIN"]] == 0
             or coil_values[COIL_MAP["OUTPUT"]] == 0
         ):
+            print("Setting OUTPUT coil to off, because one of the following is true:")
+            print(f"Tank underfull: {TANK_LEVEL <= 0}")
+            print(f"Input Values Drain {input_values[INPUT_MAP["DRAIN"]]}")
+            print(f"Coil Values Output {coil_values[COIL_MAP["OUTPUT"]]}")
             coil_values[COIL_MAP["OUTPUT"]] = 0
 
         TANK_STATE["coils"] = coil_values
-        print("tank coil values", TANK_STATE["coils"])
 
         # save coil updates
         context[SLAVE_ID].setValues(

@@ -1,11 +1,12 @@
-{ "brb": 0,
+{
+	"brb": 1,
 	"drain": 1,
-	"tankLevels": 1000,    
-	"inputRate": 10.0,        
-	"outputRate": 7.5,        
-	"level": 500,         
-	"highLevel": 900,    
+	"tankLevels": 1000,
+	"inputRate": 10.0,
+	"outputRate": 7.5,
+	"level": 500,
+	"highLevel": 900,
 	"lowLevel": 100,
-	"update": 5.0,           
+	"update": 5.0,
 	"port": 5020
 }

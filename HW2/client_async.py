@@ -27,9 +27,12 @@ The corresponding server must be started before e.g. as:
     python3 server_sync.py
 """
 import asyncio
+import time
 import logging
 import sys
 import pdb
+
+from dataclasses import dataclass
 
 try:
     import helper
@@ -45,11 +48,6 @@ from pymodbus import ModbusException
 _logger = logging.getLogger(__file__)
 logging.basicConfig(filename="async_client.log", level=logging.DEBUG)
 _logger.setLevel("DEBUG")
-
-
-class WaterTankController:
-    def enable_drain(self):
-        pass
 
 
 def setup_async_client(description=None, cmdline=None):
@@ -127,44 +125,93 @@ async def run_async_client(client, modbus_calls=None):
     _logger.info("### End of Program")
 
 
+@dataclass
+class TankState:
+    input_coil_on: bool
+    output_coil_on: bool
+    big_red_button: bool
+    drain_output: bool
+    high_sensor: bool
+    low_sensor: bool
+    level: int
+
+
+class WaterTankController:
+    MAX_LEVEL = 900
+    MIN_LEVEL = 100
+
+    def __init__(self, client):
+        self.client = client
+
+    async def control_loop(self) -> None:
+        state = await self._read_state()
+        if state.level > self.MAX_LEVEL:
+            print("Warning: tank level exceeded 900 units!")
+            await self._flow_out()
+        if state.level < self.MIN_LEVEL:
+            print("Warning: tank level fell below 100 units!")
+            await self._flow_in()
+
+        if self.MIN_LEVEL <= state.level <= self.MAX_LEVEL:
+            # Valid region
+            pass
+
+    async def _read_state(self) -> TankState:
+        rr = await self.client.read_coils(0, 2, slave=1)
+        output_coils = rr.bits
+        input_coil = output_coils[0]
+        output_coil = output_coils[1]
+
+        rr = await self.client.read_discrete_inputs(3, 4, slave=1)
+        input_flags = rr.bits
+        brb = input_flags[0]
+        drain = input_flags[1]
+        high = input_flags[2]
+        low = input_flags[3]
+
+        rr = await self.client.read_holding_registers(8, 1, slave=1)
+        register_values = rr.registers
+        level = register_values[0]
+
+        state = TankState(input_coil, output_coil, brb, drain, high, low, level)
+        print(f"State: {state}")
+
+        return state
+
+    async def _flow_in(self):
+        await self._disable_drain()
+        await self._enable_input()
+
+    async def _flow_out(self):
+        await self._disable_input()
+        await self._enable_drain()
+
+    async def _enable_drain(self):
+        await self.client.write_coil(1, 1, slave=1)
+
+    async def _disable_drain(self):
+        await self.client.write_coil(1, 0, slave=1)
+
+    async def _enable_input(self):
+        await self.client.write_coil(0, 1, slave=1)
+
+    async def _disable_input(self):
+        await self.client.write_coil(0, 0, slave=1)
+
+
 async def run_a_few_calls(client):
     """Test connection works."""
-    try:
-        print("Reading output coil bits")
-        rr = await client.read_coils(0, 2, slave=1)
-        print(rr.bits)
+    controller = WaterTankController(client)
+    await controller._flow_in()
+    while True:
+        try:
+            await controller._read_state()
+            await controller._flow_in()
+            time.sleep(0.5)
 
-        print("Reading direct input flags")
-        rr = await client.read_discrete_inputs(3, 4, slave=1)
-        print(rr.bits)
-
-        print("Reading holding registers to get level")
-        rr = await client.read_holding_registers(8, 1, slave=1)
-        print(rr.registers)
-
-        return
-        # rr = await client.read_discrete_inputs(0, 8, slave=1)
-        print("Attempting direct input address read...")
-        rr = await client.read_discrete_inputs(
-            ai.rd_direct_input_address, count=ai.rd_direct_input_cnt, slave=1
-        )
-        print(rr)
-        print(vars(rr))
-        print("Attempting holding registers address read...")
-        rr = await client.read_holding_registers(
-            ai.rd_reg_address, count=ai.rd_reg_cnt, slave=1
-        )
-        print(rr)
-        print("Attempting output coil address read...")
-        rr = await client.read_coils(
-            ai.rd_output_coil_address, count=ai.rd_output_coil_cnt, slave=1
-        )
-        print(rr)
-        print(vars(rr))
-
-    except ModbusException as e:
-        print(f"Exception occurred:\n{e}")
-        pass
+        except ModbusException as e:
+            print(f"Exception occurred:\n{e}")
+            pass
 
 
 async def main(cmdline=None):
